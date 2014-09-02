@@ -11,6 +11,12 @@ attribute
 * host: elasticsearch host localhost by default (accessor write)
 * port: elasticsearch port 9200 by default (accessor write)
 
+return
+------
+Library return a json data
+if an error occured the json contains the field "error"
+otherwhise it contains all data
+
 Exemple
 =======
 

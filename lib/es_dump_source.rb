@@ -36,31 +36,53 @@ class ESDumpSource
     hits.each do |entry|
       @result += [entry['_source']]
     end
-  rescue => e
-    puts e.message
-    exit 1
   end
 
   def retrieve_data_scroll_id
     uri = "http://#{@host}:#{@port}/_search/scroll?scroll=#{@scroll_time}"
     until @end
-      response = RestClient.post(uri, @scroll_id,
-                                 content_type: :json, accept: :json)
-      data = JSON.parse response
-      retrieve_scroll_id(JSON.parse(response))
-      parse_result(data['hits']['hits'])
+      RestClient.post(uri, @scroll_id,
+                      content_type: :json, accept: :json) \
+      do |response, request, result|
+        case response.code
+        when 200
+          begin
+            data = JSON.parse response
+            retrieve_scroll_id(data)
+            parse_result(data['hits']['hits'])
+          rescue => e
+            error = { 'error' => e.message }
+            return error.to_json
+          end
+        when 404
+          return response
+        else
+          return response
+        end
+      end
     end
   end
 
   def retrieve_data
     uri = "http://#{@host}:#{@port}/#{@pattern}/_search?search_type=scan" + \
           "&scroll=#{@scroll_time}&size=#{@size}"
-    response = RestClient.get(uri, accept: :json)
-    retrieve_scroll_id(JSON.parse(response))
-    retrieve_data_scroll_id
-    @result.to_json
-  rescue  => e
-    puts e.message
-    exit 1
+    RestClient.get(uri, accept: :json) \
+    do |response, request, result|
+      case response.code
+      when 200
+        begin
+          retrieve_scroll_id(JSON.parse(response))
+          retrieve_data_scroll_id
+          @result.to_json
+        rescue => e
+          error = { 'error' => e.message }
+          return error.to_json
+        end  
+      when 404
+        return response
+      else
+        return response
+      end
+    end
   end
 end
